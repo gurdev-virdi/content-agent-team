@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161b22;
+    --surface2: #1e2530;
+    --border: #2a3140;
+    --accent: #3fb950;
+    --accent2: #58a6ff;
+    --warn: #d29922;
+    --danger: #f85149;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --font: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  header .logo { font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.5px; }
+  header .tagline { color: var(--muted); font-size: 12px; }
+  header .indicators { margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .dot.green { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .dot.red { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+  .dot.yellow { background: var(--warn); }
+  .badge { background: var(--accent); color: #000; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge.warn { background: var(--warn); }
+  .badge.danger { background: var(--danger); }
+
+  /* Layout */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  nav { width: 180px; background: var(--surface); border-right: 1px solid var(--border); padding: 16px 0; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+  nav .section-label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 12px 16px 4px; }
+  nav a { display: block; padding: 7px 16px; color: var(--muted); text-decoration: none; border-radius: 4px; margin: 0 6px; transition: all 0.15s; font-size: 12px; cursor: pointer; }
+  nav a:hover { background: var(--surface2); color: var(--text); }
+  nav a.active { background: var(--surface2); color: var(--accent); border-left: 2px solid var(--accent); margin-left: 4px; padding-left: 14px; }
+
+  /* Main content */
+  main { flex: 1; overflow-y: auto; padding: 24px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+  .card .value { font-size: 20px; font-weight: 600; color: var(--text); }
+  .card .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* Panel header */
+  .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .panel-header h2 { font-size: 16px; font-weight: 600; }
+
+  /* Buttons */
+  .btn { padding: 7px 14px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); cursor: pointer; font-family: var(--font); font-size: 12px; transition: all 0.15s; }
+  .btn:hover { background: var(--border); }
+  .btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .btn.primary:hover { opacity: 0.85; }
+  .btn.warn { background: var(--warn); color: #000; border-color: var(--warn); font-weight: 600; }
+  .btn.danger { background: var(--danger); color: #fff; border-color: var(--danger); font-weight: 600; }
+  .btn-group { display: flex; gap: 8px; }
+
+  /* Status badges */
+  .status { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .status.ok { background: rgba(63,185,80,0.15); color: var(--accent); border: 1px solid rgba(63,185,80,0.3); }
+  .status.warn { background: rgba(210,153,34,0.15); color: var(--warn); border: 1px solid rgba(210,153,34,0.3); }
+  .status.fail { background: rgba(248,81,73,0.15); color: var(--danger); border: 1px solid rgba(248,81,73,0.3); }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 12px; color: var(--muted); border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr.expandable { cursor: pointer; }
+
+  /* Agent cards */
+  .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .agent-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; cursor: pointer; transition: all 0.15s; }
+  .agent-card:hover { border-color: var(--accent2); transform: translateY(-1px); }
+  .agent-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .agent-card .model-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; background: rgba(88,166,255,0.15); color: var(--accent2); border: 1px solid rgba(88,166,255,0.3); margin-bottom: 8px; }
+  .agent-card .desc { color: var(--muted); font-size: 11px; line-height: 1.5; }
+  .agent-card .tools { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .agent-card .tool-tag { padding: 2px 7px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; font-size: 10px; color: var(--muted); }
+
+  /* Drawer */
+  .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; }
+  .drawer-overlay.open { display: block; }
+  .drawer { position: fixed; right: 0; top: 0; bottom: 0; width: 660px; background: var(--surface); border-left: 1px solid var(--border); z-index: 101; overflow-y: auto; padding: 24px; transform: translateX(100%); transition: transform 0.2s ease; display: flex; flex-direction: column; }
+  .drawer.open { transform: translateX(0); }
+  .drawer h2 { font-size: 16px; margin-bottom: 4px; }
+  .drawer .drawer-meta { color: var(--muted); font-size: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .drawer pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px; font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: var(--text); flex: 1; overflow-y: auto; }
+  .drawer-close { float: right; cursor: pointer; color: var(--muted); font-size: 18px; margin-top: -4px; }
+  .drawer-close:hover { color: var(--text); }
+
+  /* Agent editor */
+  .drawer-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .field-group { display: flex; flex-direction: column; gap: 4px; }
+  .field-group label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .field-input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 4px; font-family: var(--font); font-size: 12px; }
+  .field-input:focus { outline: none; border-color: var(--accent2); }
+  .field-group.full { grid-column: 1 / -1; }
+  .body-editor { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-family: var(--font); font-size: 12px; line-height: 1.6; color: var(--text); width: 100%; min-height: 400px; resize: vertical; }
+  .body-editor:focus { outline: none; border-color: var(--accent2); }
+  .editor-toolbar { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .editor-status { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+  /* Draft panel */
+  .draft-container { display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
+  .draft-image { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+  .draft-caption { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; white-space: pre-wrap; line-height: 1.6; font-size: 13px; max-height: 500px; overflow-y: auto; }
+  .draft-meta { margin-top: 12px; }
+  .draft-meta a { color: var(--accent2); font-size: 12px; text-decoration: none; }
+  .draft-meta a:hover { text-decoration: underline; }
+
+  /* Chat */
+  .chat-container { display: flex; flex-direction: column; height: calc(100vh - 120px); }
+  .chat-toolbar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+  .chat-toolbar select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 5px; font-family: var(--font); font-size: 12px; }
+  .chat-messages { flex: 1; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .chat-bubble { max-width: 80%; padding: 10px 14px; border-radius: 8px; line-height: 1.6; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+  .chat-bubble.user { background: var(--accent2); color: #000; align-self: flex-end; border-radius: 8px 8px 2px 8px; }
+  .chat-bubble.assistant { background: var(--surface2); border: 1px solid var(--border); align-self: flex-start; border-radius: 8px 8px 8px 2px; }
+  .chat-bubble.system { background: rgba(63,185,80,0.08); border: 1px solid rgba(63,185,80,0.2); color: var(--muted); font-size: 11px; align-self: center; padding: 5px 12px; border-radius: 10px; }
+  .chat-input-row { display: flex; gap: 8px; margin-top: 12px; }
+  .chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 5px; font-family: var(--font); font-size: 13px; resize: none; height: 44px; }
+  .chat-input:focus { outline: none; border-color: var(--accent2); }
+  .quick-commands { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .quick-cmd { padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; font-size: 11px; cursor: pointer; color: var(--muted); transition: all 0.15s; }
+  .quick-cmd:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Audit */
+  .audit-stats { display: flex; gap: 16px; margin-bottom: 20px; }
+  .audit-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; text-align: center; }
+  .audit-stat .num { font-size: 24px; font-weight: 600; }
+  .audit-stat .label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .audit-entry { padding: 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; font-size: 12px; }
+  .audit-entry.flagged-unknown { border-color: rgba(248,81,73,0.5); background: rgba(248,81,73,0.05); }
+  .audit-entry.flagged-injection { border-color: rgba(210,153,34,0.5); background: rgba(210,153,34,0.05); }
+  .audit-entry .meta { color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+  .audit-entry .msg { margin-bottom: 6px; }
+  .audit-entry .resp { color: var(--muted); font-size: 11px; white-space: pre-wrap; max-height: 80px; overflow: hidden; }
+  .audit-entry .tools { margin-top: 6px; }
+  .filter-toggle { display: flex; gap: 6px; align-items: center; margin-bottom: 14px; font-size: 12px; color: var(--muted); }
+  .filter-toggle input { cursor: pointer; }
+
+  /* Run detail */
+  .run-steps { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 10px; margin-top: 8px; font-size: 11px; color: var(--muted); white-space: pre-wrap; display: none; }
+  .run-row.expanded .run-steps { display: block; }
+  .step-progress { display: flex; gap: 0; margin-top: 6px; }
+  .step-node { padding: 3px 8px; background: var(--surface2); border: 1px solid var(--border); font-size: 10px; color: var(--muted); }
+  .step-node:first-child { border-radius: 4px 0 0 4px; }
+  .step-node:last-child { border-radius: 0 4px 4px 0; }
+  .step-node.done { background: rgba(63,185,80,0.15); color: var(--accent); border-color: rgba(63,185,80,0.3); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty .icon { font-size: 32px; margin-bottom: 12px; }
+
+  /* Log view */
+  .log-view { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-size: 11px; line-height: 1.8; color: var(--muted); height: 400px; overflow-y: auto; white-space: pre-wrap; }
+
+  /* Post history cards */
+  .post-cards { display: flex; flex-direction: column; gap: 10px; }
+  .post-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: grid; grid-template-columns: auto 1fr; gap: 14px; cursor: pointer; transition: border-color 0.15s; }
+  .post-card:hover { border-color: var(--accent2); }
+  .post-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border); }
+  .post-thumb-placeholder { width: 60px; height: 60px; background: var(--surface2); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 18px; }
+  .post-card .hook { font-size: 13px; margin-bottom: 4px; }
+  .post-card .meta { color: var(--muted); font-size: 11px; }
+
+  /* Team switcher */
+  .team-switcher { display: flex; align-items: center; gap: 8px; }
+  .team-switcher select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 5px; font-family: var(--font); font-size: 12px; cursor: pointer; }
+  .team-switcher select:focus { outline: none; border-color: var(--accent2); }
+
+  /* Teams panel */
+  .team-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .team-row { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .team-row.active-team { border-color: var(--accent); background: rgba(63,185,80,0.05); }
+  .team-icon { font-size: 22px; flex-shrink: 0; }
+  .team-info { flex: 1; min-width: 0; }
+  .team-info .name { font-size: 14px; font-weight: 600; }
+  .team-info .desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .team-info .path { font-size: 10px; color: var(--muted); margin-top: 3px; font-family: var(--font); opacity: 0.7; }
+  .team-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* New-team / new-agent modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; width: 520px; max-width: 95vw; }
+  .modal h3 { font-size: 15px; margin-bottom: 16px; }
+  .modal-fields { display: flex; flex-direction: column; gap: 12px; }
+  .modal-field label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+  .modal-field input, .modal-field textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 4px; font-family: var(--font); font-size: 12px; }
+  .modal-field input:focus, .modal-field textarea:focus { outline: none; border-color: var(--accent2); }
+  .modal-field textarea { min-height: 200px; resize: vertical; line-height: 1.6; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+  /* Kill switch */
+  .kill-switch-btn { padding: 7px 16px; border-radius: 5px; border: 2px solid var(--danger); background: transparent; color: var(--danger); cursor: pointer; font-family: var(--font); font-size: 12px; font-weight: 700; letter-spacing: 0.5px; transition: all 0.15s; text-transform: uppercase; }
+  .kill-switch-btn:hover { background: var(--danger); color: #fff; box-shadow: 0 0 12px rgba(248,81,73,0.5); }
+  .kill-switch-btn.active { background: var(--danger); color: #fff; box-shadow: 0 0 14px rgba(248,81,73,0.6); animation: pulse-red 2s infinite; }
+  @keyframes pulse-red { 0%,100% { box-shadow: 0 0 8px rgba(248,81,73,0.5); } 50% { box-shadow: 0 0 20px rgba(248,81,73,0.9); } }
+  .kill-banner { display: none; background: rgba(248,81,73,0.12); border-bottom: 2px solid var(--danger); padding: 10px 24px; flex-shrink: 0; align-items: center; gap: 14px; }
+  .kill-banner.visible { display: flex; }
+  .kill-banner .kill-icon { font-size: 18px; flex-shrink: 0; }
+  .kill-banner .kill-text { flex: 1; }
+  .kill-banner .kill-title { font-size: 13px; font-weight: 700; color: var(--danger); }
+  .kill-banner .kill-reason { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .kill-banner .kill-since { font-size: 10px; color: var(--muted); margin-top: 1px; opacity: 0.7; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⬡ Mission Control</div>
+  <div class="team-switcher">
+    <select id="team-select" onchange="switchTeam(this.value)" title="Active team"></select>
+  </div>
+  <div class="indicators">
+    <span id="daemon-indicator"><span class="dot yellow"></span> checking...</span>
+    <span id="draft-badge" style="display:none"><span class="badge">Draft Pending</span></span>
+    <span id="test-mode-badge" style="display:none"><span class="badge warn">TEST MODE</span></span>
+    <span id="kill-switch-badge" style="display:none"><span class="badge danger">🚫 KILL SWITCH ON</span></span>
+    <span id="last-run-indicator" style="color:var(--muted); font-size:11px"></span>
+    <button id="kill-switch-btn" class="kill-switch-btn" onclick="toggleKillSwitch()" title="Emergency stop — blocks all agent flows">⬛ STOP ALL</button>
+  </div>
+</header>
+
+<!-- Kill switch alert banner (shown when active) -->
+<div class="kill-banner" id="kill-banner">
+  <div class="kill-icon">🚫</div>
+  <div class="kill-text">
+    <div class="kill-title">KILL SWITCH ACTIVE — All agent flows are blocked</div>
+    <div class="kill-reason" id="kill-banner-reason"></div>
+    <div class="kill-since" id="kill-banner-since"></div>
+  </div>
+  <button class="btn primary" style="flex-shrink:0" onclick="deactivateKillSwitch(this)">✓ Resume Operations</button>
+</div>
+
+<div class="layout">
+  <nav id="nav">
+    <div class="section-label">Workspace</div>
+    <a data-panel="overview" class="active">⬡ Mission Control</a>
+    <a data-panel="teams">◈ Teams</a>
+    <div class="section-label">Pipeline</div>
+    <a data-panel="agents" id="nav-agents">◈ Agents</a>
+    <a data-panel="runs">▶ Pipeline Runs</a>
+    <a data-panel="draft">◻ Today's Draft</a>
+    <a data-panel="history">◷ Post History</a>
+    <div class="section-label">Security</div>
+    <a data-panel="audit">⊘ Telegram Audit</a>
+    <div class="section-label">Console</div>
+    <a data-panel="chat">◉ Chat</a>
+    <a data-panel="logs">≡ Daemon Log</a>
+  </nav>
+
+  <main>
+    <!-- ── OVERVIEW ─────────────────────────────────────────────── -->
+    <div class="panel active" id="panel-overview">
+      <div class="panel-header">
+        <h2>Mission Control</h2>
+        <div class="btn-group">
+          <button class="btn primary" onclick="triggerAction('run-pipeline', this)">▶ Run Pipeline</button>
+          <button class="btn" onclick="triggerAction('find-stories', this)">⟳ Find Stories</button>
+        </div>
+      </div>
+      <div class="grid-4" id="status-cards">
+        <div class="card"><h3>Daemon</h3><div class="value" id="s-daemon">—</div><div class="sub" id="s-daemon-sub"></div></div>
+        <div class="card"><h3>Last Run</h3><div class="value" id="s-run">—</div><div class="sub" id="s-run-sub"></div></div>
+        <div class="card"><h3>Pending Draft</h3><div class="value" id="s-draft">—</div><div class="sub" id="s-draft-sub"></div></div>
+        <div class="card"><h3>Last Approved</h3><div class="value" id="s-approved">—</div><div class="sub" id="s-approved-sub"></div></div>
+      </div>
+
+      <!-- Process controls -->
+      <div style="margin-top:20px; display:grid; grid-template-columns:1fr 1fr; gap:14px">
+        <div class="card">
+          <h3>Telegram Daemon</h3>
+          <div style="display:flex; align-items:center; gap:12px; margin-top:8px">
+            <div id="daemon-proc-status" style="flex:1; font-size:13px">—</div>
+            <div class="btn-group">
+              <button class="btn" id="btn-start-daemon" onclick="triggerAction('start-daemon', this)" title="Start daemon">▶ Start</button>
+              <button class="btn warn" id="btn-restart-daemon" onclick="triggerAction('restart-daemon', this)" title="Restart daemon">⟳ Restart</button>
+              <button class="btn danger" id="btn-stop-daemon" onclick="confirmAction('stop-daemon', this, 'Stop the Telegram daemon?')" title="Stop daemon">■ Stop</button>
+            </div>
+          </div>
+          <div style="color:var(--muted); font-size:11px; margin-top:8px" id="daemon-pid-display"></div>
+        </div>
+        <div class="card">
+          <h3>Pipeline</h3>
+          <div style="display:flex; align-items:center; gap:12px; margin-top:8px">
+            <div id="pipeline-proc-status" style="flex:1; font-size:13px">—</div>
+            <div class="btn-group">
+              <button class="btn primary" onclick="triggerAction('run-pipeline', this)">▶ Run</button>
+              <button class="btn danger" id="btn-stop-pipeline" onclick="confirmAction('stop-pipeline', this, 'Stop the running pipeline?')">■ Stop</button>
+            </div>
+          </div>
+          <div style="color:var(--muted); font-size:11px; margin-top:8px" id="pipeline-pid-display"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:20px; color:var(--muted); font-size:11px; text-align:right" id="s-time"></div>
+    </div>
+
+    <!-- ── TEAMS ───────────────────────────────────────────────── -->
+    <div class="panel" id="panel-teams">
+      <div class="panel-header">
+        <h2>Teams</h2>
+        <button class="btn primary" onclick="openNewTeamModal()">+ New Team</button>
+      </div>
+      <div class="team-list" id="team-list"></div>
+    </div>
+
+    <!-- ── AGENTS ──────────────────────────────────────────────── -->
+    <div class="panel" id="panel-agents">
+      <div class="panel-header">
+        <h2>Agent Inspector</h2>
+        <button class="btn primary" onclick="openNewAgentModal()">+ New Agent</button>
+      </div>
+      <div class="agent-grid" id="agent-grid"></div>
+    </div>
+
+    <!-- ── RUNS ───────────────────────────────────────────────── -->
+    <div class="panel" id="panel-runs">
+      <div class="panel-header"><h2>Pipeline Runs</h2></div>
+      <div id="runs-table-wrap"></div>
+    </div>
+
+    <!-- ── DRAFT ──────────────────────────────────────────────── -->
+    <div class="panel" id="panel-draft">
+      <div class="panel-header">
+        <h2>Today's Draft</h2>
+        <div class="btn-group" id="draft-actions" style="display:none">
+          <button class="btn primary" onclick="triggerAction('approve', this)">✅ Approve</button>
+          <button class="btn warn" onclick="triggerAction('revise', this)">🔄 Revise</button>
+        </div>
+      </div>
+      <div id="draft-content"></div>
+    </div>
+
+    <!-- ── HISTORY ─────────────────────────────────────────────── -->
+    <div class="panel" id="panel-history">
+      <div class="panel-header"><h2>Post History</h2></div>
+      <div class="post-cards" id="history-list"></div>
+    </div>
+
+    <!-- ── AUDIT ──────────────────────────────────────────────── -->
+    <div class="panel" id="panel-audit">
+      <div class="panel-header"><h2>Telegram Audit</h2></div>
+      <div class="audit-stats" id="audit-stats"></div>
+      <div class="filter-toggle">
+        <input type="checkbox" id="audit-filter"> <label for="audit-filter">Show flagged only</label>
+      </div>
+      <div id="audit-entries"></div>
+    </div>
+
+    <!-- ── CHAT ───────────────────────────────────────────────── -->
+    <div class="panel" id="panel-chat">
+      <div class="chat-container">
+        <div class="chat-toolbar">
+          <span style="color:var(--muted); font-size:11px">Agent:</span>
+          <select id="chat-agent">
+            <option value="content-director">content-director (orchestrator)</option>
+            <option value="scout">scout</option>
+            <option value="writer">writer</option>
+            <option value="visual">visual</option>
+            <option value="publisher">publisher</option>
+          </select>
+        </div>
+        <div class="quick-commands">
+          <span class="quick-cmd" onclick="sendQuick('What is the current system status?')">System status</span>
+          <span class="quick-cmd" onclick="sendQuick('Run today\\'s pipeline')">Run pipeline</span>
+          <span class="quick-cmd" onclick="sendQuick('Find today\\'s top 3 wildlife stories')">Find stories</span>
+          <span class="quick-cmd" onclick="sendQuick('Show me the pending draft')">Show draft</span>
+          <span class="quick-cmd" onclick="sendQuick('What stories have we covered recently?')">Coverage check</span>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-bubble system">Connected to content-director. Type a message or use a quick command.</div>
+        </div>
+        <div class="chat-input-row">
+          <textarea class="chat-input" id="chat-input" placeholder="Message the agent..." rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+          <button class="btn primary" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LOGS ───────────────────────────────────────────────── -->
+    <div class="panel" id="panel-logs">
+      <div class="panel-header">
+        <h2>Daemon Log</h2>
+        <button class="btn" onclick="loadLogs()">⟳ Refresh</button>
+      </div>
+      <div class="log-view" id="log-view">Loading...</div>
+    </div>
+  </main>
+</div>
+
+<!-- Agent drawer -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <span class="drawer-close" onclick="closeDrawer()">✕</span>
+  <h2 id="drawer-name"></h2>
+  <div class="drawer-meta" id="drawer-meta"></div>
+
+  <!-- View mode -->
+  <div id="drawer-view">
+    <pre id="drawer-body"></pre>
+  </div>
+
+  <!-- Edit mode -->
+  <div id="drawer-edit" style="display:none">
+    <div class="drawer-fields">
+      <div class="field-group">
+        <label>Model</label>
+        <input class="field-input" id="edit-model" type="text" placeholder="e.g. claude-sonnet-4-6">
+      </div>
+      <div class="field-group">
+        <label>Tools</label>
+        <input class="field-input" id="edit-tools" type="text" placeholder="e.g. Bash, Read, Write">
+      </div>
+      <div class="field-group full">
+        <label>Description</label>
+        <input class="field-input" id="edit-description" type="text">
+      </div>
+    </div>
+    <div style="color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px">Instructions</div>
+    <textarea class="body-editor" id="edit-body"></textarea>
+    <div class="editor-toolbar" style="margin-top:10px">
+      <button class="btn primary" onclick="saveAgent()">💾 Save</button>
+      <button class="btn" onclick="cancelEdit()">Cancel</button>
+      <span class="editor-status" id="edit-status"></span>
+    </div>
+  </div>
+</div>
+
+<!-- New Team modal -->
+<div class="modal-overlay" id="new-team-modal">
+  <div class="modal">
+    <h3 id="team-modal-title">New Team</h3>
+    <div class="modal-fields">
+      <input type="hidden" id="team-edit-id">
+      <div class="modal-field"><label>Icon (emoji)</label><input id="team-icon" value="⬡" maxlength="4" style="width:60px"></div>
+      <div class="modal-field"><label>Name</label><input id="team-name" placeholder="My Pipeline"></div>
+      <div class="modal-field"><label>Description</label><input id="team-desc" placeholder="What this team does"></div>
+      <div class="modal-field"><label>Project Directory (absolute path)</label><input id="team-dir" placeholder="/Users/you/claude/my-project"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('new-team-modal')">Cancel</button>
+      <button class="btn primary" onclick="saveTeam()">Save Team</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Agent modal -->
+<div class="modal-overlay" id="new-agent-modal">
+  <div class="modal">
+    <h3>New Agent</h3>
+    <div class="modal-fields">
+      <div class="modal-field"><label>Agent Name (used as filename)</label><input id="new-agent-name" placeholder="my-agent"></div>
+      <div class="modal-field"><label>Full .md content (including frontmatter)</label>
+        <textarea id="new-agent-content" placeholder="---&#10;name: my-agent&#10;model: claude-sonnet-4-6&#10;description: What this agent does&#10;tools: Bash&#10;---&#10;&#10;# My Agent&#10;&#10;Instructions here..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('new-agent-modal')">Cancel</button>
+      <button class="btn primary" onclick="createAgent()">Create Agent</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+
+// ── Team state ──────────────────────────────────────────────────────────────
+
+let currentTeam = 'animals-thriving';
+let teamsData = [];
+
+function tq() { return `?team=${currentTeam}`; }  // team query string helper
+
+async function initTeams() {
+  try {
+    teamsData = await fetch(`${API}/api/teams`).then(r => r.json());
+  } catch(e) {
+    teamsData = [{id: 'animals-thriving', name: 'Animals Thriving', icon: '🦁', description: '', project_dir: ''}];
+  }
+  const sel = document.getElementById('team-select');
+  sel.innerHTML = teamsData.map(t =>
+    `<option value="${t.id}" ${t.id === currentTeam ? 'selected' : ''}>${t.icon || '⬡'} ${t.name}</option>`
+  ).join('');
+}
+
+function switchTeam(teamId) {
+  currentTeam = teamId;
+  // Reload whichever panel is currently active
+  const activePanel = document.querySelector('.panel.active');
+  if (activePanel) {
+    const id = activePanel.id.replace('panel-', '');
+    loadPanelData(id);
+  }
+  loadStatus();
+}
+
+function loadPanelData(panelId) {
+  if (panelId === 'agents') loadAgents();
+  else if (panelId === 'runs') loadRuns();
+  else if (panelId === 'draft') loadDraft();
+  else if (panelId === 'history') loadHistory();
+  else if (panelId === 'audit') loadAudit();
+  else if (panelId === 'logs') loadLogs();
+  else if (panelId === 'teams') loadTeamsPanel();
+}
+
+// ── Teams panel ─────────────────────────────────────────────────────────────
+
+async function loadTeamsPanel() {
+  const list = document.getElementById('team-list');
+  list.innerHTML = '<div style="color:var(--muted)">Loading...</div>';
+  try {
+    teamsData = await fetch(`${API}/api/teams`).then(r => r.json());
+    list.innerHTML = teamsData.map(t => `
+      <div class="team-row ${t.id === currentTeam ? 'active-team' : ''}">
+        <div class="team-icon">${t.icon || '⬡'}</div>
+        <div class="team-info">
+          <div class="name">${escHtml(t.name)}${t.id === currentTeam ? ' <span style="color:var(--accent);font-size:10px">● active</span>' : ''}</div>
+          <div class="desc">${escHtml(t.description || '—')}</div>
+          <div class="path">${escHtml(t.project_dir || 'No project directory set')}</div>
+        </div>
+        <div class="team-actions">
+          <button class="btn" style="font-size:11px" onclick="switchTeam('${t.id}');nav('overview')" ${t.id === currentTeam ? 'disabled' : ''}>Switch</button>
+          <button class="btn" style="font-size:11px" onclick="editTeam('${t.id}')">✏ Edit</button>
+          ${t.id !== 'animals-thriving' ? `<button class="btn danger" style="font-size:11px;padding:5px 8px" onclick="deleteTeam('${t.id}')">✕</button>` : ''}
+        </div>
+      </div>`).join('');
+    // Refresh team switcher
+    const sel = document.getElementById('team-select');
+    sel.innerHTML = teamsData.map(t =>
+      `<option value="${t.id}" ${t.id === currentTeam ? 'selected' : ''}>${t.icon || '⬡'} ${t.name}</option>`
+    ).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="empty"><div class="icon">⚠</div>Could not load teams.</div>';
+  }
+}
+
+function openNewTeamModal(editId) {
+  const isEdit = !!editId;
+  document.getElementById('team-modal-title').textContent = isEdit ? 'Edit Team' : 'New Team';
+  document.getElementById('team-edit-id').value = editId || '';
+  if (!isEdit) {
+    document.getElementById('team-icon').value = '⬡';
+    document.getElementById('team-name').value = '';
+    document.getElementById('team-desc').value = '';
+    document.getElementById('team-dir').value = '';
+  }
+  document.getElementById('new-team-modal').classList.add('open');
+}
+
+function editTeam(teamId) {
+  const t = teamsData.find(x => x.id === teamId);
+  if (!t) return;
+  document.getElementById('team-icon').value = t.icon || '⬡';
+  document.getElementById('team-name').value = t.name;
+  document.getElementById('team-desc').value = t.description || '';
+  document.getElementById('team-dir').value = t.project_dir || '';
+  openNewTeamModal(teamId);
+}
+
+async function saveTeam() {
+  const editId = document.getElementById('team-edit-id').value;
+  const payload = {
+    icon: document.getElementById('team-icon').value.trim(),
+    name: document.getElementById('team-name').value.trim(),
+    description: document.getElementById('team-desc').value.trim(),
+    project_dir: document.getElementById('team-dir').value.trim(),
+  };
+  if (!payload.name) { alert('Team name is required.'); return; }
+  try {
+    if (editId) {
+      await fetch(`${API}/api/teams/${editId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    } else {
+      await fetch(`${API}/api/teams`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    }
+    closeModal('new-team-modal');
+    loadTeamsPanel();
+  } catch(e) {
+    alert('Save failed: ' + e.message);
+  }
+}
+
+async function deleteTeam(teamId) {
+  if (!confirm(`Delete team "${teamId}"? This only removes it from Mission Control — files on disk are untouched.`)) return;
+  await fetch(`${API}/api/teams/${teamId}`, { method: 'DELETE' });
+  if (currentTeam === teamId) { currentTeam = 'animals-thriving'; }
+  loadTeamsPanel();
+  await initTeams();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ── New Agent ─────────────────────────────────────────────────────────────
+
+function openNewAgentModal() {
+  document.getElementById('new-agent-name').value = '';
+  document.getElementById('new-agent-content').value = '';
+  document.getElementById('new-agent-modal').classList.add('open');
+}
+
+async function createAgent() {
+  const name = document.getElementById('new-agent-name').value.trim();
+  const content = document.getElementById('new-agent-content').value.trim();
+  if (!name || !content) { alert('Name and content are required.'); return; }
+  try {
+    const resp = await fetch(`${API}/api/agents${tq()}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name, content}),
+    }).then(r => r.json());
+    if (resp.status === 'created') {
+      closeModal('new-agent-modal');
+      loadAgents();
+    } else {
+      alert('Error: ' + (resp.detail || JSON.stringify(resp)));
+    }
+  } catch(e) {
+    alert('Create failed: ' + e.message);
+  }
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+
+function nav(panelId) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('panel-' + panelId).classList.add('active');
+  document.querySelector(`nav a[data-panel="${panelId}"]`).classList.add('active');
+  loadPanelData(panelId);
+}
+
+document.querySelectorAll('nav a[data-panel]').forEach(a => {
+  a.addEventListener('click', () => nav(a.dataset.panel));
+});
+
+// ── Status polling ──────────────────────────────────────────────────────────
+
+async function loadStatus() {
+  try {
+    const data = await fetch(`${API}/api/status${tq()}`).then(r => r.json());
+    // Update team name in title
+    if (data.team) document.title = `Mission Control — ${data.team.name}`;
+    // Dynamic agent count in nav
+    const navAgents = document.getElementById('nav-agents');
+    if (navAgents && data.agent_count != null) navAgents.textContent = `◈ Agents (${data.agent_count})`;
+
+    // Daemon
+    const daemonEl = document.getElementById('s-daemon');
+    const daemonInd = document.getElementById('daemon-indicator');
+    if (data.daemon.up) {
+      daemonEl.innerHTML = '<span class="status ok">Running</span>';
+      daemonInd.innerHTML = '<span class="dot green"></span> Daemon up';
+      document.getElementById('s-daemon-sub').textContent = data.daemon.since ? 'since ' + data.daemon.since.slice(0,16) : '';
+    } else {
+      daemonEl.innerHTML = '<span class="status fail">Down</span>';
+      daemonInd.innerHTML = '<span class="dot red"></span> Daemon down';
+      document.getElementById('s-daemon-sub').textContent = 'check daemon.log';
+    }
+
+    // Last run
+    if (data.last_run) {
+      const st = data.last_run.status;
+      const badge = st === 'complete' ? 'ok' : st === 'failed' ? 'fail' : 'warn';
+      document.getElementById('s-run').innerHTML = `<span class="status ${badge}">${st}</span>`;
+      document.getElementById('s-run-sub').textContent = data.last_run.story || data.last_run.run_id;
+      document.getElementById('last-run-indicator').textContent = 'Last run: ' + (data.last_run.started_at || '').slice(0,16);
+    } else {
+      document.getElementById('s-run').textContent = 'No runs yet';
+    }
+
+    // Draft
+    const draftBadge = document.getElementById('draft-badge');
+    if (data.pending_draft) {
+      document.getElementById('s-draft').innerHTML = '<span class="status warn">Pending</span>';
+      document.getElementById('s-draft-sub').textContent = (data.draft_preview || '').slice(0, 60);
+      draftBadge.style.display = '';
+    } else {
+      document.getElementById('s-draft').innerHTML = '<span class="status ok">None</span>';
+      document.getElementById('s-draft-sub').textContent = 'No draft awaiting approval';
+      draftBadge.style.display = 'none';
+    }
+
+    // Last approved
+    if (data.last_approved) {
+      document.getElementById('s-approved').textContent = data.last_approved.date;
+      document.getElementById('s-approved-sub').textContent = (data.last_approved.hook || '').slice(0, 55);
+    } else {
+      document.getElementById('s-approved').textContent = 'None yet';
+    }
+
+    // Test mode
+    document.getElementById('test-mode-badge').style.display = data.test_mode ? '' : 'none';
+
+    // Kill switch
+    const ks = data.kill_switch || {};
+    const killBtn = document.getElementById('kill-switch-btn');
+    const killBanner = document.getElementById('kill-banner');
+    const killBadge = document.getElementById('kill-switch-badge');
+    if (ks.active) {
+      killBtn.classList.add('active');
+      killBtn.textContent = '⬛ KILL SWITCH ON';
+      killBanner.classList.add('visible');
+      killBadge.style.display = '';
+      document.getElementById('kill-banner-reason').textContent = ks.reason ? 'Reason: ' + ks.reason : '';
+      document.getElementById('kill-banner-since').textContent = ks.activated_at ? 'Activated: ' + ks.activated_at.slice(0,16) : '';
+      // Disable run pipeline buttons
+      document.querySelectorAll('[onclick*="run-pipeline"]').forEach(b => { b.disabled = true; b.title = 'Kill switch is active'; });
+    } else {
+      killBtn.classList.remove('active');
+      killBtn.textContent = '⬛ STOP ALL';
+      killBanner.classList.remove('visible');
+      killBadge.style.display = 'none';
+      // Re-enable run pipeline buttons
+      document.querySelectorAll('[onclick*="run-pipeline"]').forEach(b => { b.disabled = false; b.title = ''; });
+    }
+
+    document.getElementById('s-time').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+    // Process controls
+    const daemonProc = document.getElementById('daemon-proc-status');
+    const daemonPidEl = document.getElementById('daemon-pid-display');
+    const btnStop = document.getElementById('btn-stop-daemon');
+    const btnStart = document.getElementById('btn-start-daemon');
+    const btnRestart = document.getElementById('btn-restart-daemon');
+    if (data.daemon.pid) {
+      daemonProc.innerHTML = '<span class="status ok">Running</span>';
+      daemonPidEl.textContent = `PID ${data.daemon.pid}`;
+      btnStop.disabled = false; btnStart.disabled = true; btnRestart.disabled = false;
+    } else {
+      daemonProc.innerHTML = '<span class="status fail">Stopped</span>';
+      daemonPidEl.textContent = '';
+      btnStop.disabled = true; btnStart.disabled = false; btnRestart.disabled = false;
+    }
+
+    const pipelineProc = document.getElementById('pipeline-proc-status');
+    const pipelinePidEl = document.getElementById('pipeline-pid-display');
+    const btnStopPipeline = document.getElementById('btn-stop-pipeline');
+    if (data.pipeline_running) {
+      pipelineProc.innerHTML = '<span class="status warn">Running</span>';
+      pipelinePidEl.textContent = `PID ${data.pipeline_pid}`;
+      btnStopPipeline.disabled = false;
+    } else {
+      pipelineProc.innerHTML = '<span class="status ok">Idle</span>';
+      pipelinePidEl.textContent = '';
+      btnStopPipeline.disabled = true;
+    }
+  } catch(e) {
+    console.error('Status load failed:', e);
+  }
+}
+
+initTeams().then(() => loadStatus());
+setInterval(loadStatus, 30000);
+
+// ── Agents ──────────────────────────────────────────────────────────────────
+
+let agentsData = [];
+async function loadAgents() {
+  const grid = document.getElementById('agent-grid');
+  grid.innerHTML = '<div style="color:var(--muted)">Loading...</div>';
+  try {
+    agentsData = await fetch(`${API}/api/agents${tq()}`).then(r => r.json());
+    // Update nav count
+    document.getElementById('nav-agents').textContent = `◈ Agents (${agentsData.length})`;
+    grid.innerHTML = '';
+    agentsData.forEach(agent => {
+      const card = document.createElement('div');
+      card.className = 'agent-card';
+      card.innerHTML = `
+        <h3>${agent.name}</h3>
+        <div class="model-badge">${agent.model.includes('haiku') ? 'Haiku' : agent.model.includes('sonnet') ? 'Sonnet' : agent.model}</div>
+        <div class="desc">${agent.description.slice(0, 120)}${agent.description.length > 120 ? '…' : ''}</div>
+        <div class="tools">${agent.tools.map(t => `<span class="tool-tag">${t}</span>`).join('')}</div>
+      `;
+      card.onclick = () => openDrawer(agent);
+      grid.appendChild(card);
+    });
+  } catch(e) {
+    grid.innerHTML = '<div class="empty"><div class="icon">⚠</div>Could not load agents.</div>';
+  }
+}
+
+let _drawerAgent = null;
+
+function openDrawer(agent) {
+  _drawerAgent = agent;
+  document.getElementById('drawer-name').textContent = agent.name;
+  document.getElementById('drawer-meta').innerHTML =
+    `<span class="model-badge" style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;background:rgba(88,166,255,0.15);color:var(--accent2);border:1px solid rgba(88,166,255,0.3)">${agent.model}</span>
+     <span style="color:var(--muted)">Tools: ${agent.tools.join(', ')}</span>
+     <button class="btn" style="padding:3px 10px;font-size:11px" onclick="startEdit()">✏️ Edit</button>`;
+  document.getElementById('drawer-body').textContent = agent.body;
+  document.getElementById('drawer-view').style.display = '';
+  document.getElementById('drawer-edit').style.display = 'none';
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+
+function startEdit() {
+  if (!_drawerAgent) return;
+  const a = _drawerAgent;
+  document.getElementById('edit-model').value = a.model;
+  document.getElementById('edit-tools').value = a.tools.join(', ');
+  document.getElementById('edit-description').value = a.description;
+  document.getElementById('edit-body').value = a.body;
+  document.getElementById('edit-status').textContent = '';
+  document.getElementById('drawer-view').style.display = 'none';
+  document.getElementById('drawer-edit').style.display = '';
+}
+
+function cancelEdit() {
+  document.getElementById('drawer-view').style.display = '';
+  document.getElementById('drawer-edit').style.display = 'none';
+}
+
+async function saveAgent() {
+  if (!_drawerAgent) return;
+  const model  = document.getElementById('edit-model').value.trim();
+  const tools  = document.getElementById('edit-tools').value.trim();
+  const desc   = document.getElementById('edit-description').value.trim();
+  const body   = document.getElementById('edit-body').value;
+  const name   = _drawerAgent.name;
+
+  // Reconstruct full .md file
+  const content = `---\nname: ${name}\nmodel: ${model}\ndescription: ${desc}\ntools: ${tools}\n---\n\n${body}`;
+
+  const statusEl = document.getElementById('edit-status');
+  statusEl.textContent = 'Saving…';
+  statusEl.style.color = 'var(--muted)';
+
+  try {
+    const resp = await fetch(`${API}/api/agents/${name}${tq()}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({content}),
+    }).then(r => r.json());
+
+    // Update cached agent data
+    _drawerAgent = {..._drawerAgent, model, tools: tools.split(',').map(t=>t.trim()), description: desc, body, raw: content};
+    const idx = agentsData.findIndex(a => a.name === name);
+    if (idx >= 0) agentsData[idx] = _drawerAgent;
+
+    statusEl.textContent = '✓ Saved';
+    statusEl.style.color = 'var(--accent)';
+
+    // Refresh drawer header to show new model
+    document.getElementById('drawer-meta').innerHTML =
+      `<span class="model-badge" style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;background:rgba(88,166,255,0.15);color:var(--accent2);border:1px solid rgba(88,166,255,0.3)">${model}</span>
+       <span style="color:var(--muted)">Tools: ${tools}</span>
+       <button class="btn" style="padding:3px 10px;font-size:11px" onclick="startEdit()">✏️ Edit</button>`;
+
+    setTimeout(() => cancelEdit(), 800);
+  } catch(e) {
+    statusEl.textContent = '✗ Save failed: ' + e.message;
+    statusEl.style.color = 'var(--danger)';
+  }
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('drawer-view').style.display = '';
+  document.getElementById('drawer-edit').style.display = 'none';
+}
+
+// ── Pipeline Runs ─────────────────────────────────────────────────────────
+
+async function loadRuns() {
+  const wrap = document.getElementById('runs-table-wrap');
+  wrap.innerHTML = '<div style="color:var(--muted)">Loading...</div>';
+  try {
+    const runs = await fetch(`${API}/api/runs${tq()}`).then(r => r.json());
+    if (!runs.length) {
+      wrap.innerHTML = '<div class="empty"><div class="icon">▷</div>No pipeline runs recorded yet.</div>';
+      return;
+    }
+    const STEPS = ['started', 'story_selected', 'draft_assembled', 'telegram_sent', 'complete'];
+    const rows = runs.map(r => {
+      const badge = r.status === 'complete' ? 'ok' : r.status === 'failed' ? 'fail' : 'warn';
+      const stepsHtml = STEPS.map(s => {
+        const done = r.steps.some(st => st.step === s) || r.status === s;
+        return `<span class="step-node ${done ? 'done' : ''}">${s.replace('_', ' ')}</span>`;
+      }).join('');
+      const rawLines = r.steps.map(s => `${s.time}  ${s.raw || s.step || ''}`).join('\n');
+      return `<tr class="run-row expandable" onclick="toggleRun(this)">
+        <td>${r.started_at ? r.started_at.slice(0,16) : '—'}</td>
+        <td style="font-size:11px; color:var(--muted)">${r.run_id}</td>
+        <td><span class="status ${badge}">${r.status}</span></td>
+        <td>${r.story || '—'}</td>
+        <td>
+          <div class="step-progress">${stepsHtml}</div>
+          <div class="run-steps">${rawLines || 'No step detail.'}</div>
+        </td>
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table>
+      <thead><tr><th>Date</th><th>Run ID</th><th>Status</th><th>Story</th><th>Steps</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  } catch(e) {
+    wrap.innerHTML = '<div class="empty"><div class="icon">⚠</div>Could not load runs.</div>';
+  }
+}
+
+function toggleRun(tr) {
+  tr.classList.toggle('expanded');
+}
+
+// ── Today's Draft ──────────────────────────────────────────────────────────
+
+async function loadDraft() {
+  const content = document.getElementById('draft-content');
+  const actions = document.getElementById('draft-actions');
+  content.innerHTML = '<div style="color:var(--muted)">Loading...</div>';
+  try {
+    const d = await fetch(`${API}/api/draft${tq()}`).then(r => r.json());
+    if (!d.pending) {
+      content.innerHTML = `<div class="empty"><div class="icon">◻</div>No pending draft. The pipeline hasn't produced a post today yet.</div>`;
+      actions.style.display = 'none';
+      return;
+    }
+    actions.style.display = '';
+    const imgSrc = d.image ? `${API}/${d.image}` : null;
+    const status = d.approval_status || '';
+    const statusBadge = status.startsWith('PENDING') ? '<span class="status warn">Awaiting Approval</span>' :
+                        status.startsWith('TEST') ? '<span class="status ok">Test Mode</span>' :
+                        status.startsWith('REJECTED') ? '<span class="status fail">Rejected</span>' :
+                        '<span class="status ok">Ready</span>';
+    content.innerHTML = `
+      <div style="margin-bottom:12px">${statusBadge}</div>
+      <div class="draft-container">
+        <div>
+          ${imgSrc ? `<img class="draft-image" src="${imgSrc}" onerror="this.style.display='none'">` : '<div class="draft-thumb-placeholder" style="width:100%;aspect-ratio:1;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:32px">🖼</div>'}
+          <div class="draft-meta" style="margin-top:12px">
+            ${d.source ? `<a href="${d.source}" target="_blank" rel="noopener">📎 Source article ↗</a>` : ''}
+            ${d.image_credit ? `<div style="color:var(--muted);font-size:11px;margin-top:4px">${d.image_credit}</div>` : ''}
+          </div>
+          ${d.selection ? `<div style="margin-top:16px"><div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Story Selection</div><pre style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto">${escHtml(d.selection)}</pre></div>` : ''}
+        </div>
+        <div>
+          <div style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Caption</div>
+          <div class="draft-caption">${escHtml(d.caption || '')}</div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    content.innerHTML = '<div class="empty"><div class="icon">⚠</div>Could not load draft.</div>';
+  }
+}
+
+// ── Post History ───────────────────────────────────────────────────────────
+
+async function loadHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '<div style="color:var(--muted)">Loading...</div>';
+  try {
+    const posts = await fetch(`${API}/api/approved${tq()}`).then(r => r.json());
+    if (!posts.length) {
+      list.innerHTML = '<div class="empty"><div class="icon">◷</div>No approved posts yet.</div>';
+      return;
+    }
+    list.innerHTML = posts.map(p => {
+      const imgSrc = p.image ? `${API}/output/approved/${p.date}/${p.image.split('/').pop()}` : null;
+      return `<div class="post-card" onclick="togglePostDetail(this)">
+        ${imgSrc
+          ? `<img class="post-thumb" src="${imgSrc}" onerror="this.outerHTML='<div class=post-thumb-placeholder>🌿</div>'">`
+          : `<div class="post-thumb-placeholder">🌿</div>`}
+        <div>
+          <div class="hook">${escHtml((p.hook || 'No caption').slice(0, 100))}</div>
+          <div class="meta">${p.date}${p.is_test ? ' · test' : ''}${p.source ? ' · ' + domainOnly(p.source) : ''}</div>
+          <div class="post-detail" style="display:none;margin-top:10px;font-size:12px;color:var(--muted);white-space:pre-wrap;max-height:200px;overflow-y:auto">${escHtml(p.caption || '')}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="empty"><div class="icon">⚠</div>Could not load history.</div>';
+  }
+}
+
+function togglePostDetail(card) {
+  const detail = card.querySelector('.post-detail');
+  if (detail) detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Telegram Audit ─────────────────────────────────────────────────────────
+
+let auditData = null;
+async function loadAudit() {
+  const statsEl = document.getElementById('audit-stats');
+  const entriesEl = document.getElementById('audit-entries');
+  statsEl.innerHTML = '<div style="color:var(--muted)">Loading...</div>';
+  try {
+    auditData = await fetch(`${API}/api/audit${tq()}`).then(r => r.json());
+    const d = auditData;
+    statsEl.innerHTML = `
+      <div class="audit-stat"><div class="num">${d.total_messages}</div><div class="label">Total Messages</div></div>
+      <div class="audit-stat"><div class="num" style="color:var(--danger)">${d.unknown_chat_ids}</div><div class="label">Unknown Chat IDs</div></div>
+      <div class="audit-stat"><div class="num" style="color:var(--warn)">${d.injection_attempts}</div><div class="label">Injection Attempts</div></div>
+      <div class="audit-stat"><div class="num" style="color:var(--muted)">${d.authorized_chat_id}</div><div class="label">Auth'd Chat ID</div></div>
+    `;
+    renderAuditEntries();
+  } catch(e) {
+    statsEl.innerHTML = '<div class="empty"><div class="icon">⚠</div>Could not load audit data.</div>';
+  }
+}
+
+function renderAuditEntries() {
+  if (!auditData) return;
+  const flaggedOnly = document.getElementById('audit-filter').checked;
+  const entries = flaggedOnly
+    ? auditData.entries.filter(e => e.flagged_unknown || e.flagged_injection)
+    : auditData.entries;
+  const el = document.getElementById('audit-entries');
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">✓</div>' + (flaggedOnly ? 'No flagged entries.' : 'No conversations logged yet.') + '</div>';
+    return;
+  }
+  el.innerHTML = entries.slice(0, 100).map(e => {
+    const cls = e.flagged_unknown ? 'flagged-unknown' : e.flagged_injection ? 'flagged-injection' : '';
+    const flags = [
+      e.flagged_unknown ? '🔴 Unknown chat ID' : '',
+      e.flagged_injection ? '🟠 Injection detected' : '',
+    ].filter(Boolean).join(' ');
+    return `<div class="audit-entry ${cls}">
+      <div class="meta">${e.timestamp.slice(0,16)} · chat_id: ${e.chat_id}${flags ? ' · ' + flags : ''}</div>
+      <div class="msg"><strong>User:</strong> ${escHtml(e.user_text.slice(0, 200))}</div>
+      ${e.bot_response ? `<div class="resp"><strong>Bot:</strong> ${escHtml(e.bot_response.slice(0, 300))}</div>` : ''}
+      ${e.tools_called.length ? `<div class="tools" style="margin-top:4px">${e.tools_called.map(t => `<span class="tool-tag" style="display:inline-block;padding:1px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;font-size:10px">${t}</span>`).join(' ')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('audit-filter').addEventListener('change', renderAuditEntries);
+
+// ── Chat ───────────────────────────────────────────────────────────────────
+
+let chatStreaming = false;
+
+function appendBubble(text, role) {
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `chat-bubble ${role}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function sendQuick(text) {
+  document.getElementById('chat-input').value = text;
+  sendChat();
+}
+
+async function sendChat() {
+  if (chatStreaming) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const agent = document.getElementById('chat-agent').value;
+  input.value = '';
+  appendBubble(text, 'user');
+  chatStreaming = true;
+
+  const bubble = appendBubble('', 'assistant');
+  let buffer = '';
+
+  try {
+    const url = `${API}/api/chat/stream?message=${encodeURIComponent(text)}&agent=${encodeURIComponent(agent)}`;
+    const resp = await fetch(url);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      for (const line of chunk.split('\n')) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') break;
+          try {
+            const obj = JSON.parse(data);
+            if (obj.text) {
+              buffer += obj.text;
+              bubble.textContent = buffer;
+              document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+            }
+          } catch(e) {}
+        }
+      }
+    }
+  } catch(e) {
+    bubble.textContent = `Error: ${e.message}`;
+    bubble.style.color = 'var(--danger)';
+  }
+  chatStreaming = false;
+}
+
+// ── Daemon Log ─────────────────────────────────────────────────────────────
+
+async function loadLogs() {
+  const view = document.getElementById('log-view');
+  try {
+    const data = await fetch(`${API}/api/logs/daemon${tq()}`).then(r => r.json());
+    if (!data.lines.length) {
+      view.textContent = 'No log entries yet.';
+    } else {
+      view.textContent = data.lines.join('\n');
+      view.scrollTop = view.scrollHeight;
+    }
+  } catch(e) {
+    view.textContent = 'Could not load log.';
+  }
+}
+
+// ── Actions ────────────────────────────────────────────────────────────────
+
+async function confirmAction(action, btn, msg) {
+  if (!confirm(msg)) return;
+  await triggerAction(action, btn);
+}
+
+async function triggerAction(action, btn) {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⟳ Working...';
+  try {
+    const resp = await fetch(`${API}/api/actions/${action}${tq()}`, { method: 'POST' }).then(r => r.json());
+    btn.textContent = '✓ ' + (resp.message || resp.status);
+    setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 3000);
+    loadStatus();
+    if (action === 'approve' || action === 'revise') loadDraft();
+  } catch(e) {
+    btn.textContent = '✗ Failed';
+    setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 2000);
+  }
+}
+
+// ── Kill Switch ────────────────────────────────────────────────────────────
+
+async function toggleKillSwitch() {
+  const ks = await fetch(`${API}/api/kill-switch${tq()}`).then(r => r.json());
+  if (ks.active) {
+    await deactivateKillSwitch();
+  } else {
+    await activateKillSwitch();
+  }
+}
+
+async function activateKillSwitch(btn) {
+  const reason = prompt(
+    '⬛ EMERGENCY STOP\n\nThis will immediately block all agent flows and stop any running pipeline.\n\nOptional: enter a reason (or leave blank):',
+    ''
+  );
+  if (reason === null) return; // user cancelled
+  if (!confirm(`Activate kill switch and halt all agent operations?\n\nReason: "${reason || '(none)'}"`)) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Activating...'; }
+  try {
+    const resp = await fetch(`${API}/api/kill-switch/activate${tq()}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({reason: reason || 'Manually activated via Mission Control'}),
+    }).then(r => r.json());
+    loadStatus();
+  } catch(e) {
+    alert('Failed to activate kill switch: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬛ STOP ALL'; }
+  }
+}
+
+async function deactivateKillSwitch(btn) {
+  if (!confirm('Deactivate kill switch and resume normal agent operations?')) return;
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Resuming...'; }
+  try {
+    await fetch(`${API}/api/kill-switch/deactivate${tq()}`, { method: 'POST' }).then(r => r.json());
+    loadStatus();
+  } catch(e) {
+    alert('Failed to deactivate kill switch: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Resume Operations'; }
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function domainOnly(url) {
+  try { return new URL(url).hostname.replace('www.', ''); } catch(e) { return url; }
+}
+</script>
+</body>
+</html>

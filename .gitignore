@@ -1,0 +1,14 @@
+.env
+.DS_Store
+.venv/
+.claude/
+memory/
+SECURITY.md
+__pycache__/
+*.pyc
+output/
+output/.telegram-offset
+logs/
+*.jpg
+*.png
+scripts/com.animalsthriving.daemon.plist
