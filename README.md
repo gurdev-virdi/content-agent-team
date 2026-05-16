@@ -1,6 +1,6 @@
-# Animals Thriving
+# Content Agent Team
 
-Animals Thriving is a small content automation system for a wildlife-focused Instagram account. It finds one positive conservation or animal story each day, drafts the caption, sources or generates an image, and sends the result to the owner for approval in Telegram. Approved drafts are archived for manual posting.
+Content Agent Team is a small content automation system for the Animals Thriving Instagram account. It finds one positive conservation or animal story each day, drafts the caption, sources or generates an image, and sends the result to the owner for approval in Telegram. Approved drafts are archived for manual posting.
 
 ## Why this project matters
 
@@ -17,7 +17,7 @@ Highlights for reviewers:
 ## What it does
 
 - Finds one strong wildlife or conservation story for the day
-- Writes an Instagram caption in the Animals Thriving voice
+- Writes an Instagram caption in the Animals Thriving brand voice
 - Sources or generates a square image
 - Sends the draft to Telegram for approval
 - Archives approved content for later reference
@@ -140,7 +140,7 @@ Install or reload the Telegram approval daemon:
 scripts/install-daemon.sh
 ```
 
-## Recruiter notes
+## Notes
 
 If you are scanning this repo quickly, the best starting points are:
 
