@@ -2,6 +2,18 @@
 
 Animals Thriving is a small content automation system for a wildlife-focused Instagram account. It finds one positive conservation or animal story each day, drafts the caption, sources or generates an image, and sends the result to the owner for approval in Telegram. Approved drafts are archived for manual posting.
 
+## Why this project matters
+
+This repo is meant to demonstrate practical product engineering rather than just prompt experiments. It combines LLM orchestration, local tooling, operator review, and lightweight operational safeguards into a workflow that could plausibly be run every day by a small brand or creator.
+
+Highlights for reviewers:
+
+- end-to-end automation with a human approval checkpoint
+- a local dashboard for monitoring and manual control
+- explicit setup and health-check scripts
+- a bias toward reversible actions over fully autonomous publishing
+- separation between public code and private operating state
+
 ## What it does
 
 - Finds one strong wildlife or conservation story for the day
@@ -21,6 +33,33 @@ The pipeline has four main stages:
 - approval and archive handoff
 
 The local dashboard lives in Mission Control and runs from `scripts/mission-control.sh`.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A["Scheduled run or manual trigger"] --> B["Pipeline runtime"]
+    B --> C["Story selection"]
+    C --> D["Caption generation"]
+    C --> E["Image sourcing or generation"]
+    D --> F["Draft assembly"]
+    E --> F
+    F --> G["Telegram approval request"]
+    G --> H{"Approved?"}
+    H -->|Yes| I["Archive approved draft"]
+    H -->|Revise| B
+    B --> J["Mission Control dashboard"]
+    J --> B
+```
+
+More detail lives in [`docs/architecture.md`](docs/architecture.md) and a sanitized sample workflow is in [`docs/example-run.md`](docs/example-run.md).
+
+## Design choices
+
+- Human-in-the-loop publishing: the system stops at approval instead of auto-posting to social platforms.
+- Local-first operations: runtime scripts, logs, and dashboard are built to be used from one workstation without extra infrastructure.
+- Health checks before heroics: `scripts/doctor.py` surfaces missing dependencies and environment issues early.
+- Security-conscious repo shape: private prompts, local state, and generated content are intentionally kept out of version control.
 
 ## Quick start
 
@@ -100,6 +139,16 @@ Install or reload the Telegram approval daemon:
 ```bash
 scripts/install-daemon.sh
 ```
+
+## Recruiter notes
+
+If you are scanning this repo quickly, the best starting points are:
+
+- `README.md` for the product and architecture overview
+- `scripts/mission_control/app.py` for the operational dashboard backend
+- `scripts/pipeline_local.py` for the main workflow logic
+- `scripts/doctor.py` for runtime validation
+- `docs/example-run.md` for a concrete end-to-end example
 
 ## Project structure
 
