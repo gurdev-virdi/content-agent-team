@@ -140,7 +140,7 @@ Install or reload the Telegram approval daemon:
 scripts/install-daemon.sh
 ```
 
-## Recruiter notes
+## Notes
 
 If you are scanning this repo quickly, the best starting points are:
 
